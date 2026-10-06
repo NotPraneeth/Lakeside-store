@@ -40,3 +40,14 @@ export const passwordChangeSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
   newPassword: z.string().min(8, "New password must be at least 8 characters").max(128),
 });
+
+// Client beacons for the `events` collection. Everything stays z.string()
+// (never raw) so NoSQL-injection bodies are rejected; the server enriches
+// productId with category/unitPrice snapshots from the database.
+export const eventSchema = z.object({
+  type: z.enum(["product_view", "add_to_cart", "remove_from_cart", "search", "category_filter"]),
+  productId: z.string().min(1).max(64).optional(),
+  quantity: z.number().int().min(1).max(99).optional(),
+  searchTerm: z.string().trim().max(200).optional(),
+  category: z.string().trim().max(100).optional(),
+});

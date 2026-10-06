@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { ShopEvent } from "../models/Event";
 import { cartTotal, formatMoney } from "./money";
-import { cartItemSchema, cartUpdateSchema, loginSchema, signupSchema } from "./validators";
+import { cartItemSchema, cartUpdateSchema, eventSchema, loginSchema, signupSchema } from "./validators";
 
 describe("money helpers", () => {
   it("cartTotal sums unitPrice * quantity", () => {
@@ -53,5 +54,48 @@ describe("validators (NoSQL injection + password rules)", () => {
     // 0 is allowed on update (means remove), 100 is not
     expect(cartUpdateSchema.safeParse({ productId: "abc", quantity: 0 }).success).toBe(true);
     expect(cartUpdateSchema.safeParse({ productId: "abc", quantity: 100 }).success).toBe(false);
+  });
+});
+
+describe("event beacons", () => {
+  it("accepts each beacon shape", () => {
+    expect(eventSchema.safeParse({ type: "product_view", productId: "abc123" }).success).toBe(true);
+    expect(
+      eventSchema.safeParse({ type: "add_to_cart", productId: "abc123", quantity: 2 }).success
+    ).toBe(true);
+    expect(eventSchema.safeParse({ type: "search", searchTerm: "mouse" }).success).toBe(true);
+    expect(eventSchema.safeParse({ type: "category_filter", category: "Books" }).success).toBe(true);
+  });
+
+  it("rejects non-string payloads (NoSQL injection attempt)", () => {
+    expect(eventSchema.safeParse({ type: "search", searchTerm: { $ne: null } }).success).toBe(false);
+    expect(eventSchema.safeParse({ type: { $ne: null } }).success).toBe(false);
+  });
+
+  it("requires productId for product/cart events, term for search", () => {
+    // enforced server-side (route checks); schema stays permissive for shape,
+    // but unknown enum values are rejected here
+    expect(eventSchema.safeParse({ type: "purchase", productId: "abc" }).success).toBe(false);
+    expect(eventSchema.safeParse({ type: "product_view" }).success).toBe(true);
+  });
+});
+
+describe("event model (sparse docs must validate)", () => {
+  it("accepts beacons with missing optional fields (no explicit nulls)", async () => {
+    // Regression: Mongoose runs `validate` even on explicit null, so the
+    // logger strips nulls. These sparse docs must pass validation offline.
+    await new ShopEvent({ sessionId: "s1", type: "search", searchTerm: "mouse" }).validate();
+    await new ShopEvent({
+      sessionId: "s1",
+      type: "product_view",
+      category: "Electronics",
+      unitPrice: 79900,
+    }).validate();
+  });
+
+  it("rejects unknown event types", async () => {
+    await expect(
+      new ShopEvent({ sessionId: "s1", type: "purchase" }).validate()
+    ).rejects.toThrow();
   });
 });

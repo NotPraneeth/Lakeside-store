@@ -1,0 +1,10 @@
+# Stage 2 analytics (Python 3.13). Install into analytics/venv:
+#   python -m venv analytics/venv
+#   analytics/venv/Scripts/python -m pip install -r analytics/requirements.txt
+pymongo>=4.9
+pandas>=2.2.3
+scikit-learn>=1.5.2
+statsmodels>=0.14.4
+mlxtend>=0.23.1
+google-genai>=1.0.0
+python-dotenv>=1.0.1

@@ -32,8 +32,6 @@ async function fetchCartCount(): Promise<number | null> {
   }
 }
 
-const CATS = ["Electronics", "Books", "Home", "Fashion"];
-
 function isActivePath(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(href + "/");
@@ -114,19 +112,6 @@ export default function Navbar() {
             </span>
           </span>
         </Link>
-
-        <div className="ml-4 hidden items-center gap-1 lg:flex">
-          {CATS.map((c) => (
-            <Link
-              key={c}
-                href={`/?category=${encodeURIComponent(c)}`}
-                onClick={closeMenus}
-              className="rounded-lg px-2.5 py-2 text-[13px] font-medium text-zinc-500 transition hover:bg-zinc-800/50 hover:text-zinc-200"
-            >
-              {c}
-            </Link>
-          ))}
-        </div>
 
         <div className="ml-auto flex items-center gap-1.5">
           <div className="hidden items-center md:flex">
@@ -249,16 +234,6 @@ export default function Navbar() {
                 Orders
               </Link>
             )}
-            {CATS.map((c) => (
-              <Link
-                key={c}
-              href={`/?category=${encodeURIComponent(c)}`}
-                onClick={closeMenus}
-                className="rounded-xl border border-zinc-800/70 bg-zinc-900/60 px-3 py-2.5 text-sm text-zinc-300"
-              >
-                {c}
-              </Link>
-            ))}
           </div>
           {!user && (
             <div className="mt-2.5 flex gap-2">

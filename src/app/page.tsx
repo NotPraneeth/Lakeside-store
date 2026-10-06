@@ -1,9 +1,10 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProductCard, { type ProductDto } from "@/components/ProductCard";
 import { EmptyState, SkeletonCard } from "@/components/ui";
+import { beacon } from "@/lib/beacon";
 
 type Sort = "newest" | "price-asc" | "price-desc";
 
@@ -14,14 +15,32 @@ const SORTS: { v: Sort; label: string }[] = [
 ];
 
 function Storefront() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const initialCategory = searchParams.get("category") ?? "";
+  const paramCategory = searchParams.get("category") ?? "";
   const [products, setProducts] = useState<ProductDto[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState(initialCategory);
+  const [category, setCategory] = useState(paramCategory);
   const [sort, setSort] = useState<Sort>("newest");
   const [loading, setLoading] = useState(true);
+
+  // Follow the ?category= URL param (footer links, back/forward) without
+  // losing local search/sort state otherwise. Render-time adjustment keeps
+  // this out of an effect.
+  const [prevParam, setPrevParam] = useState(paramCategory);
+  if (paramCategory !== prevParam) {
+    setPrevParam(paramCategory);
+    setCategory(paramCategory);
+    setLoading(true);
+  }
+
+  function pickCategory(c: string) {
+    setLoading(true);
+    setCategory(c);
+    router.replace(c ? `/?category=${encodeURIComponent(c)}` : "/", { scroll: false });
+    beacon({ type: "category_filter", category: c || "All" });
+  }
 
   const runQuery = useCallback(
     async (opts: { search: string; category: string; sort: Sort }) => {
@@ -74,8 +93,8 @@ function Storefront() {
 
   function clearAll() {
     setSearch("");
-    setCategory("");
     setSort("newest");
+    pickCategory("");
     void runQuery({ search: "", category: "", sort: "newest" });
   }
 
@@ -115,6 +134,7 @@ function Storefront() {
         className="mt-5 flex flex-col gap-2 sm:flex-row"
         onSubmit={(e) => {
           e.preventDefault();
+          if (search.trim()) beacon({ type: "search", searchTerm: search.trim() });
           void runQuery({ search, category, sort });
         }}
       >
@@ -151,10 +171,7 @@ function Storefront() {
       <div className="mt-4 flex flex-wrap gap-1.5">
         <button
           type="button"
-          onClick={() => {
-            setLoading(true);
-            setCategory("");
-          }}
+          onClick={() => pickCategory("")}
           className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
             category === ""
               ? "border-indigo-500/50 bg-indigo-500/15 text-indigo-200"
@@ -167,10 +184,7 @@ function Storefront() {
           <button
             key={c}
             type="button"
-            onClick={() => {
-              setLoading(true);
-              setCategory(c);
-            }}
+            onClick={() => pickCategory(c)}
             className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
               category === c
                 ? "border-indigo-500/50 bg-indigo-500/15 text-indigo-200"

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
+import { beacon } from "@/lib/beacon";
 import { formatMoney } from "@/lib/money";
 import { toast } from "@/lib/toast";
 import type { ProductDto } from "@/components/ProductCard";
@@ -17,6 +18,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [qty, setQty] = useState(1);
   const [adding, setAdding] = useState(false);
   const [loading, setLoading] = useState(true);
+  const viewedRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,6 +28,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         const d = res.ok ? await res.json() : null;
         if (cancelled) return;
         setProduct(d?.product ?? null);
+        if (d?.product && viewedRef.current !== id) {
+          viewedRef.current = id;
+          beacon({ type: "product_view", productId: id });
+        }
         if (d?.product?.category) {
           try {
             const r = await fetch(

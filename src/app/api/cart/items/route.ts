@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { ensureSessionId, logEvent } from "@/lib/events";
 import { cartItemSchema, cartUpdateSchema } from "@/lib/validators";
 import { Cart } from "@/models/Cart";
 import { Product } from "@/models/Product";
@@ -12,6 +13,8 @@ async function loadProduct(productId: string) {
   return Product.findOne({ _id: productId, isActive: true }).lean<{
     _id: unknown;
     stock: number;
+    category: string;
+    price: number;
   } | null>();
 }
 
@@ -59,6 +62,15 @@ export async function POST(req: Request) {
       { $push: { items: { productId: new mongoose.Types.ObjectId(parsed.data.productId), quantity: parsed.data.quantity } } }
     );
   }
+  await logEvent({
+    userId: user.id,
+    sessionId: await ensureSessionId(),
+    type: "add_to_cart",
+    productId: parsed.data.productId,
+    category: product.category,
+    unitPrice: product.price,
+    quantity: parsed.data.quantity,
+  });
   return NextResponse.json({ ok: true, quantity: newQty });
 }
 
@@ -81,6 +93,15 @@ export async function PATCH(req: Request) {
   const userId = new mongoose.Types.ObjectId(user.id);
   if (parsed.data.quantity === 0) {
     await Cart.updateOne({ userId }, { $pull: { items: { productId: new mongoose.Types.ObjectId(parsed.data.productId) } } });
+    const removed = await loadProduct(parsed.data.productId);
+    await logEvent({
+      userId: user.id,
+      sessionId: await ensureSessionId(),
+      type: "remove_from_cart",
+      productId: parsed.data.productId,
+      category: removed?.category ?? null,
+      unitPrice: removed?.price ?? null,
+    });
     return NextResponse.json({ ok: true, removed: true });
   }
 
@@ -109,9 +130,21 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Invalid productId" }, { status: 400 });
   }
   await connectDb();
+  const removed = await Product.findOne({ _id: productId }).lean<{
+    category: string;
+    price: number;
+  } | null>();
   await Cart.updateOne(
     { userId: new mongoose.Types.ObjectId(user.id) },
     { $pull: { items: { productId: new mongoose.Types.ObjectId(productId) } } }
   );
+  await logEvent({
+    userId: user.id,
+    sessionId: await ensureSessionId(),
+    type: "remove_from_cart",
+    productId,
+    category: removed?.category ?? null,
+    unitPrice: removed?.price ?? null,
+  });
   return NextResponse.json({ ok: true });
 }

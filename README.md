@@ -2,7 +2,7 @@
 
 Minimal but fully working online store on MongoDB. See `../implementation.md` for the full plan.
 
-Stage 1 scope: signup/login, browse products (search + category filter), cart, mock checkout, profile, purchase history. No AI yet (Stage 2).
+Stage 1 scope: signup/login, browse products (search + category filter), cart, mock checkout, profile, purchase history. Stage 2 (analytics + events) lives in `analytics/` and the `events` collection.
 
 ## Prerequisites
 
@@ -25,7 +25,7 @@ Start MongoDB (local):
 docker compose up -d
 ```
 
-Seed the catalog (16 products, 4 categories, safe to re-run):
+Seed the catalog (60 products, 4 categories, safe to re-run):
 
 ```bash
 npm run seed
@@ -72,3 +72,18 @@ Health check: `GET /api/health` returns `{ "db": "ok" }` when MongoDB is reachab
 - Prices are integers (paise/cents), never floats; formatting only in `src/lib/money.ts`.
 - `users.role` (`customer`/`admin`) already exists for the future admin dashboard.
 - Server computes all totals; client prices are ignored.
+
+## Behavioral events (`events` collection)
+
+The site logs fire-and-forget analytics events for funnel + recommender work:
+
+| Type | Logged where |
+|---|---|
+| `product_view` | Detail page beacon (`POST /api/events`, guest-safe via `lakeside_sid` cookie) |
+| `add_to_cart` / `remove_from_cart` | Server-side in `POST/PATCH/DELETE /api/cart/items` (only on success, with live price snapshot) |
+| `search` / `category_filter` | Storefront toolbar beacons |
+
+Purchases are **derived from `orders`**, never logged (no double-counting).
+Events carry `userId` (when logged in) + `sessionId` (always), snapshots
+(`category`, `unitPrice`), and auto-expire after ~13 months (TTL index).
+See `analytics/README.md` for the batch jobs that read them.

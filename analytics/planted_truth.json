@@ -1,0 +1,42 @@
+{
+  "seed": 42,
+  "months": 30,
+  "users": 650,
+  "orders": 22620,
+  "personas": [
+    "tech",
+    "bookworm",
+    "home",
+    "bargain"
+  ],
+  "plantedPairs": [
+    {
+      "a": "Wireless Mouse",
+      "b": "Mechanical Keyboard",
+      "attachProb": 0.4
+    },
+    {
+      "a": "The Pragmatic Programmer",
+      "b": "Clean Code",
+      "attachProb": 0.4
+    },
+    {
+      "a": "Ceramic Coffee Mug (Set of 2)",
+      "b": "Indian Cookbook",
+      "attachProb": 0.4
+    }
+  ],
+  "festiveMonths": [
+    9,
+    10
+  ],
+  "weekendMultipliers": {
+    "fri": 1.2,
+    "sat": 1.9,
+    "sun": 1.7
+  },
+  "spikeDay": "2025-02-13",
+  "spikeOrdersInjected": 120,
+  "deadDay": "2024-09-16",
+  "generatedAt": "2026-10-06T08:37:51.319486+00:00"
+}
