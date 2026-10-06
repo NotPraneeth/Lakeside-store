@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lakeside Store — Stage 1 (minimal e-commerce store)
 
-## Getting Started
+Minimal but fully working online store on MongoDB. See `../implementation.md` for the full plan.
 
-First, run the development server:
+Stage 1 scope: signup/login, browse products (search + category filter), cart, mock checkout, profile, purchase history. No AI yet (Stage 2).
+
+## Prerequisites
+
+- Node.js LTS, npm, Git
+- Docker Desktop (for local MongoDB) **or** a free MongoDB Atlas cluster
+
+## Setup
+
+```bash
+npm install
+cp .env.local.example .env.local
+# edit .env.local:
+#   MONGODB_URI=mongodb://127.0.0.1:27017/shop
+#   JWT_SECRET=<long random string, min 32 chars>
+```
+
+Start MongoDB (local):
+
+```bash
+docker compose up -d
+```
+
+Seed the catalog (16 products, 4 categories, safe to re-run):
+
+```bash
+npm run seed
+```
+
+Run the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Health check: `GET /api/health` returns `{ "db": "ok" }` when MongoDB is reachable.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run build` / `npm start` | Production build / serve |
+| `npm run lint` | ESLint (must be clean) |
+| `npm run test` | Vitest: cart totals, validators, NoSQL-injection guards |
+| `npm run seed` | Re-seed products (`scripts/seed-products.ts`) |
 
-## Learn More
+## Env variables
 
-To learn more about Next.js, take a look at the following resources:
+| Var | Example | Notes |
+|---|---|---|
+| `MONGODB_URI` | `mongodb://127.0.0.1:27017/shop` | Never commit real secrets; `.env*` is gitignored |
+| `JWT_SECRET` | 64-hex-char random string | Min 32 chars; auth cookie is httpOnly, SameSite=Lax, Secure in production, 7-day expiry |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Manual test script (run before calling Stage 1 done)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Sign up → log out → log in. Refresh: stay logged in. Visit `/cart` logged out: redirects to `/login`.
+2. Search "mouse", filter by category, open a product page.
+3. Add 2 different items → change a quantity → remove one. Log out/in: cart persists.
+4. Place order → confirmation screen → appears in `/orders` with correct total → stock drops → cart empties.
+5. Open someone else's `/orders/<id>` URL → expect 404.
+6. Try to buy more than stock → expect clear error (`Only N in stock`).
 
-## Deploy on Vercel
+## Notes for Stage 2
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Orders snapshot `name`, `category`, `unitPrice` per item + `createdAt` — this is the AI's main data source.
+- Prices are integers (paise/cents), never floats; formatting only in `src/lib/money.ts`.
+- `users.role` (`customer`/`admin`) already exists for the future admin dashboard.
+- Server computes all totals; client prices are ignored.
