@@ -243,12 +243,100 @@ export default function ProfilePage() {
         </form>
       )}
 
+      <ShoppingSummary />
+    </main>
+  );
+}
+
+function ShoppingSummary() {
+  const [data, setData] = useState<{
+    orders: number;
+    totalSpent: number;
+    topCategories: { category: string; spend: number; units: number }[];
+    monthly: { month: string; spend: number }[];
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/profile/summary")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d) setData(d.summary);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!data) {
+    return (
+      <div className="card mt-4 border-dashed p-5">
+        <div className="skeleton-shimmer h-4 w-48 rounded-full" />
+        <div className="skeleton-shimmer mt-2 h-3 w-64 rounded-full" />
+      </div>
+    );
+  }
+
+  if (data.orders === 0) {
+    return (
       <div className="card mt-4 border-dashed p-5">
         <p className="text-sm font-bold text-zinc-200">📊 Your shopping summary</p>
         <p className="mt-1 text-[13px] leading-relaxed text-zinc-400">
           Total spent, top categories, and monthly spend will appear here as you shop.
         </p>
       </div>
-    </main>
+    );
+  }
+
+  const maxMonth = Math.max(1, ...data.monthly.map((m) => m.spend));
+  return (
+    <div className="card mt-4 p-5">
+      <p className="text-sm font-bold text-zinc-200">📊 Your shopping summary</p>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-zinc-950/60 px-3 py-2.5">
+          <p className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">Total spent</p>
+          <p className="text-base font-extrabold text-zinc-50 tabular-nums">
+            {(data.totalSpent / 100).toLocaleString("en-IN", { style: "currency", currency: "INR" })}
+          </p>
+        </div>
+        <div className="rounded-xl bg-zinc-950/60 px-3 py-2.5">
+          <p className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">Orders</p>
+          <p className="text-base font-extrabold text-zinc-50 tabular-nums">{data.orders}</p>
+        </div>
+      </div>
+      {data.topCategories.length > 0 && (
+        <div className="mt-3">
+          <p className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">Top categories</p>
+          <ul className="mt-1.5 flex flex-col gap-1.5">
+            {data.topCategories.map((c) => (
+              <li key={c.category} className="flex justify-between text-[13px]">
+                <span className="text-zinc-300">{c.category} <span className="text-zinc-500">· {c.units} items</span></span>
+                <span className="font-bold text-zinc-100 tabular-nums">
+                  {(c.spend / 100).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {data.monthly.length > 1 && (
+        <div className="mt-3">
+          <p className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">Monthly spend</p>
+          <div className="mt-1.5 flex h-16 items-end gap-1.5">
+            {data.monthly.map((m) => (
+              <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
+                <div
+                  className="w-full rounded-t bg-indigo-500/70"
+                  style={{ height: `${Math.max(4, Math.round((m.spend / maxMonth) * 56))}px` }}
+                  title={`${m.month}: ₹${(m.spend / 100).toLocaleString("en-IN")}`}
+                />
+                <span className="text-[9px] text-zinc-500">{m.month.slice(5)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

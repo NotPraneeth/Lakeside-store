@@ -85,5 +85,6 @@ The site logs fire-and-forget analytics events for funnel + recommender work:
 
 Purchases are **derived from `orders`**, never logged (no double-counting).
 Events carry `userId` (when logged in) + `sessionId` (always), snapshots
-(`category`, `unitPrice`), and auto-expire after ~13 months (TTL index).
+(`category`, `unitPrice`), and auto-expire after ~40 months (TTL index —
+kept longer than the 30-month synthetic history on purpose).
 See `analytics/README.md` for the batch jobs that read them.

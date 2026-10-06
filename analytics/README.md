@@ -18,10 +18,15 @@ Config comes from the environment (`MONGODB_URI`, `GEMINI_API_KEY`), honouring
 ```powershell
 # (re)generate synthetic data — 650 users / ~22.6k orders / 30 months, flagged isSynthetic
 analytics/venv/Scripts/python -m analytics.generate_fake_orders --months 30 --users 650 --orders 22500
-# run everything: descriptive + 6 ML jobs + validation scoreboard
+# regenerate events (~360k: views/adds/searches/filters, isSynthetic, consistent
+# with the orders above plus realistic noise)
+analytics/venv/Scripts/python -m analytics.generate_fake_events
+# run everything: descriptive + 6 ML jobs + funnel + validation scoreboard
 analytics/venv/Scripts/python -m analytics.run_all
 # real orders only (thin: a handful of orders, ML needs the synthetic volume)
 analytics/venv/Scripts/python -m analytics.run_all --no-synthetic
+# owner summary via Gemini (needs GEMINI_API_KEY in analytics/.env; cached by facts hash)
+analytics/venv/Scripts/python -m analytics.insights_llm
 ```
 
 | Module | Method | Writes to |
@@ -33,10 +38,30 @@ analytics/venv/Scripts/python -m analytics.run_all --no-synthetic
 | `forecast` | monthly seasonal Holt-Winters vs naive, rolling-origin backtest | `analytics_trends` |
 | `anomalies` | trailing-14d rolling z-score + Isolation Forest | `analytics_anomalies` |
 | `churn` | 2× median-gap rule → `atRisk` flags | `analytics_segments` |
+| `funnel` | view→cart→buy per product/category, abandonment, search stats | `analytics_funnel` |
+| `insights_llm` | Gemini weekly owner summary (facts JSON, digit-exact number check, hash cache) | `insights` |
 | `validate` | scoreboard vs `planted_truth.json` | stdout |
 
 Every result doc carries `runId` + `generatedAt`. Synthetic docs are the only
 ones ever deleted (`isSynthetic: true`); real store data is never touched.
+
+## Watch out: TTL vs synthetic history
+
+The `events` TTL (~40 months) must stay longer than the synthetic span
+(~30 months). A shorter TTL once silently ate 124k old events via Mongo's
+background TTL monitor — funnel consistency dropped to 52% with no error
+anywhere. If counts ever look short, check the TTL index first.
+
+## Model notes (Oct 2026)
+
+- `gemini-2.5-flash` is retired for new API keys (404); the job defaults to
+  `gemini-flash-lite-latest` with capacity fallbacks — lite models are fine
+  here because all math is precomputed; the model only verbalizes checked facts.
+- Lite models tend to *omit* sections, so the prompt enforces an 8-bullet
+  checklist, and the number check requires every headline figure digit-exact.
+- Keys must use the SAME rounding as the displayed ₹ strings — `//100`
+  (floor) vs `round()` once differed by ₹1 on forecast figures and wrongly
+  failed verification. `_rs()` centralizes this.
 
 ## Honesty notes (synthetic data!)
 

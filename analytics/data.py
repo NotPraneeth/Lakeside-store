@@ -26,6 +26,7 @@ def get_collections(client: MongoClient):
         "products": db["products"],
         "orders": db["orders"],
         "carts": db["carts"],
+        "events": db["events"],
     }
 
 
@@ -103,3 +104,38 @@ def load_products(products: Collection) -> pd.DataFrame:
         for p in docs
     ]
     return pd.DataFrame(rows)
+
+
+def load_events(
+    events: Collection,
+    *,
+    include_synthetic: bool = True,
+    types: tuple[str, ...] | None = None,
+) -> pd.DataFrame:
+    """One row per behavioral event. Purchases are NOT events — join orders."""
+    query: dict = {}
+    if not include_synthetic:
+        query["isSynthetic"] = {"$ne": True}
+    if types:
+        query["type"] = {"$in": list(types)}
+    docs = list(events.find(query))
+    rows = [
+        {
+            "eventId": str(e["_id"]),
+            "userId": str(e["userId"]) if e.get("userId") else None,
+            "sessionId": e.get("sessionId"),
+            "type": e.get("type"),
+            "productId": str(e["productId"]) if e.get("productId") else None,
+            "category": e.get("category"),
+            "unitPrice": e.get("unitPrice"),
+            "quantity": e.get("quantity"),
+            "searchTerm": e.get("searchTerm"),
+            "isSynthetic": bool(e.get("isSynthetic", False)),
+            "createdAt": e.get("createdAt"),
+        }
+        for e in docs
+    ]
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        df["createdAt"] = pd.to_datetime(df["createdAt"], utc=True)
+    return df

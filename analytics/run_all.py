@@ -11,9 +11,9 @@ Usage (from shop/):
 import argparse
 from datetime import datetime, timezone
 
-from . import anomalies, churn, descriptive, forecast, pairs, segmentation, trends, validate
+from . import anomalies, churn, descriptive, forecast, funnel, pairs, segmentation, trends, validate
 from .config import db_name
-from .data import get_client, get_collections, load_orders, load_users
+from .data import get_client, get_collections, load_events, load_orders, load_users
 
 
 def main() -> None:
@@ -30,11 +30,13 @@ def main() -> None:
         cols = get_collections(client)
         db = client[db_name()]
         for name in ("analytics_segments", "analytics_pairs",
-                     "analytics_trends", "analytics_anomalies", "insights"):
+                     "analytics_trends", "analytics_anomalies",
+                     "analytics_funnel", "insights"):
             cols[name] = db[name]
 
         items = load_orders(cols["orders"], include_synthetic=not args.no_synthetic)
         users = load_users(cols["users"], include_synthetic=not args.no_synthetic)
+        events = load_events(cols["events"], include_synthetic=not args.no_synthetic)
     finally:
         pass  # keep client open; modules share it
 
@@ -49,8 +51,24 @@ def main() -> None:
     forecast.run(items, users, cols, run_id)
     anomalies.run(items, users, cols, run_id)
     churn.run(items, users, cols, run_id)
+    if not events.empty:
+        funnel.run(items, users, events, cols, run_id)
+    else:
+        print("[funnel] no events — skipping (browse the store or run generate_fake_events)")
 
-    validate.run(cols, run_id)
+    validate.run(cols, run_id, items, events)
+
+    # prune old runs (keep 3): without this every run appends ~12k docs.
+    # `insights` is never pruned — its cache relies on inputHash, not runId.
+    try:
+        metas = list(cols["analytics_segments"].find(
+            {"type": "kmeans_meta"}, {"runId": 1}).sort("generatedAt", -1))
+        keep = {m["runId"] for m in metas[:3]}
+        for name in ("analytics_segments", "analytics_pairs", "analytics_trends",
+                     "analytics_anomalies", "analytics_funnel"):
+            cols[name].delete_many({"runId": {"$nin": list(keep)}})
+    except Exception as err:
+        print(f"[prune] skipped ({err})")
     client.close()
 
 

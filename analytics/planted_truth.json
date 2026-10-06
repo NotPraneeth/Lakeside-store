@@ -38,5 +38,34 @@
   "spikeDay": "2025-02-13",
   "spikeOrdersInjected": 120,
   "deadDay": "2024-09-16",
-  "generatedAt": "2026-10-06T08:37:51.319486+00:00"
+  "generatedAt": "2026-10-06T08:37:51.319486+00:00",
+  "events": {
+    "seed": 7,
+    "totalEvents": 359920,
+    "directBuyRate": 0.08,
+    "abandonedSessionRate": 0.15,
+    "viewsPerItemByCategory": {
+      "Electronics": 3,
+      "Books": 12,
+      "Home": 8,
+      "Fashion": 3
+    },
+    "targetConversionRank": [
+      "Electronics",
+      "Fashion",
+      "Home",
+      "Books"
+    ],
+    "trendingSpike": {
+      "products": [
+        "Smart Watch",
+        "Scented Candle Set"
+      ],
+      "targetMultiplier": 8,
+      "weekStart": "2026-09-21",
+      "weekEnd": "2026-09-28",
+      "spikeViews": 600
+    },
+    "generatedAt": "2026-10-06T09:19:01.580190+00:00"
+  }
 }

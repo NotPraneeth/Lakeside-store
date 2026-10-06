@@ -117,6 +117,7 @@ export default function Navbar() {
           <div className="hidden items-center md:flex">
             {navLink("/", "Shop")}
             {user && navLink("/orders", "Orders")}
+            {user?.role === "admin" && navLink("/admin/insights", "✦ Insights")}
           </div>
 
           <Link
@@ -232,6 +233,15 @@ export default function Navbar() {
                 className="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm font-semibold text-zinc-100"
               >
                 Orders
+              </Link>
+            )}
+            {user?.role === "admin" && (
+              <Link
+                href="/admin/insights"
+                onClick={closeMenus}
+                className="rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 py-2.5 text-sm font-semibold text-indigo-200"
+              >
+                ✦ Insights
               </Link>
             )}
           </div>

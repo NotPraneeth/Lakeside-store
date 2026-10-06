@@ -39,9 +39,11 @@ EventSchema.index({ productId: 1, createdAt: -1 });
 EventSchema.index({ userId: 1, createdAt: -1 });
 EventSchema.index({ sessionId: 1, createdAt: -1 });
 EventSchema.index({ type: 1, createdAt: -1 });
-// Views are high-volume: auto-expire after ~13 months so the collection
-// can't grow forever. All analytics read recent history anyway.
-EventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 13 * 30 * 24 * 3600 });
+// Views are high-volume: auto-expire old docs so the collection can't grow
+// forever. 40 months comfortably covers multi-year analytics history;
+// NOTE: lowering this below the synthetic data span (~30 months) silently
+// deletes old events via Mongo's TTL monitor (learned the hard way).
+EventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 40 * 30 * 24 * 3600 });
 
 export type EventDoc = InferSchemaType<typeof EventSchema> & {
   _id: mongoose.Types.ObjectId;
